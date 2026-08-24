@@ -80,7 +80,16 @@ def build_container(
     provider = provider or build_provider(settings)
     store, audit = _build_stores(settings)
     actions = ActionService(store, audit, default_handlers(provider))
-    llm = llm or FoundryLLMProvider()
+    if llm is None:
+        from outlook_agent.intelligence.foundry import FoundryConfig
+
+        foundry_cfg = FoundryConfig(
+            endpoint=settings.foundry_endpoint,
+            deployment=settings.foundry_deployment,
+            api_version=settings.foundry_api_version,
+            api_key=settings.foundry_api_key or settings.foundry_access_token,
+        )
+        llm = FoundryLLMProvider(foundry_cfg)
     mail = MailService(provider, actions)
     threads = ThreadService(provider)
     drafts = DraftService(provider, actions)

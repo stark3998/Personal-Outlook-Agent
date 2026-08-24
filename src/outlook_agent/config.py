@@ -9,6 +9,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,6 +55,32 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     log_json: bool = True
+
+    # Foundry / Azure OpenAI — no OUTLOOK_AGENT_ prefix; read directly from .env
+    foundry_endpoint: str = Field(
+        default="",
+        validation_alias=AliasChoices("FOUNDRY_ENDPOINT", "OUTLOOK_AGENT_FOUNDRY_ENDPOINT"),
+    )
+    foundry_deployment: str = Field(
+        default="",
+        validation_alias=AliasChoices("FOUNDRY_DEPLOYMENT", "OUTLOOK_AGENT_FOUNDRY_DEPLOYMENT"),
+    )
+    foundry_api_version: str = Field(
+        default="2024-10-21",
+        validation_alias=AliasChoices(
+            "FOUNDRY_API_VERSION", "OUTLOOK_AGENT_FOUNDRY_API_VERSION"
+        ),
+    )
+    foundry_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("FOUNDRY_API_KEY", "OUTLOOK_AGENT_FOUNDRY_API_KEY"),
+    )
+    foundry_access_token: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "FOUNDRY_ACCESS_TOKEN", "OUTLOOK_AGENT_FOUNDRY_ACCESS_TOKEN"
+        ),
+    )
 
 
 @lru_cache(maxsize=1)

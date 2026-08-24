@@ -277,7 +277,7 @@ end tell
 
 
 def list_drafts_script(limit: int) -> str:
-    """List drafts from the Drafts special folder (type 10) as a JSON array."""
+    """List unsent outgoing messages (drafts) as a JSON array."""
     return (
         PRELUDE
         + r"""
@@ -286,18 +286,12 @@ tell application "Microsoft Outlook"
     set maxN to """
         + str(limit)
         + r"""
-    repeat with f in mail folders
-        try
-            if (folder type of f) is 10 then
-                repeat with d in (messages of f)
-                    if (count of outItems) >= maxN then exit repeat
+    repeat with d in outgoing messages
+        if (count of outItems) >= maxN then exit repeat
 """
         + _draft_object()
         + r"""
-                    set end of outItems to j
-                end repeat
-            end if
-        end try
+        set end of outItems to j
     end repeat
     set AppleScript's text item delimiters to ","
     set body to outItems as string
