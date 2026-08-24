@@ -27,6 +27,7 @@ from outlook_agent.services.actions import (
 from .routes import (
     accounts,
     actions,
+    admin,
     agent,
     calendar,
     diagnostics,
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     app.include_router(health.router)
+    app.include_router(admin.router)
     app.include_router(diagnostics.router)
     app.include_router(accounts.router)
     app.include_router(mail.router)
