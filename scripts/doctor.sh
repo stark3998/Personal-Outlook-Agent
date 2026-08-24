@@ -1,8 +1,32 @@
 #!/usr/bin/env bash
 # Show the health and process status of all outlook-agent components.
+# Usage: doctor.sh [--reload]
+#   --reload  Restart any loaded launchd services, then show status.
 set -euo pipefail
 
 VENV_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.venv/bin"
+LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
+API_PLIST="$LAUNCH_AGENTS_DIR/com.personal.outlook-agent.api.plist"
+SYNC_PLIST="$LAUNCH_AGENTS_DIR/com.personal.outlook-agent.sync.plist"
+
+reload_service() {
+  local label="$1"
+  local plist="$2"
+  if launchctl list 2>/dev/null | grep -q "$label"; then
+    echo "  Reloading $label ..."
+    launchctl unload "$plist" 2>/dev/null && launchctl load "$plist" && echo "  OK"
+  else
+    echo "  $label not loaded — skipping"
+  fi
+}
+
+if [[ "${1:-}" == "--reload" ]]; then
+  echo "=== Outlook Agent — Reload ==="
+  echo ""
+  reload_service "com.personal.outlook-agent.api"  "$API_PLIST"
+  reload_service "com.personal.outlook-agent.sync" "$SYNC_PLIST"
+  echo ""
+fi
 
 echo "=== Outlook Agent — Status ==="
 echo ""
