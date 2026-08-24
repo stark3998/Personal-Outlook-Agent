@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from outlook_agent.config import Settings, get_settings
@@ -14,6 +13,7 @@ from outlook_agent.main import build_container
 from outlook_agent.observability import configure_logging, set_correlation_id
 from outlook_agent.providers.base import CapabilityUnavailable
 from outlook_agent.providers.outlook.applescript.executor import AppleScriptError
+from outlook_agent.providers.outlook.com.executor import ComError
 from outlook_agent.services.actions import (
     ActionError,
     ActionExpired,
@@ -44,9 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.container = build_container(settings)
 
     @app.middleware("http")
-    async def _correlation_middleware(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def _correlation_middleware(request: Request, call_next):  # noqa: ANN001, ANN202
         cid = request.headers.get("x-correlation-id") or uuid4().hex
         set_correlation_id(cid)
         response = await call_next(request)
@@ -74,6 +72,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(AppleScriptError)
     async def _applescript_handler(_: Request, exc: AppleScriptError) -> JSONResponse:
         status = 503 if exc.error_type.value in {"not_running", "not_available"} else 502
+        return JSONResponse(
+            status_code=status,
+            content={"error": exc.error_type.value, "detail": str(exc)},
+        )
+
+    @app.exception_handler(ComError)
+    async def _com_handler(_: Request, exc: ComError) -> JSONResponse:
+        unhealthy = {"not_available", "not_installed", "not_running"}
+        status = 503 if exc.error_type.value in unhealthy else 502
         return JSONResponse(
             status_code=status,
             content={"error": exc.error_type.value, "detail": str(exc)},

@@ -42,4 +42,5 @@ class ProviderName(StrEnum):
     """Identifies which provider produced a domain object."""
 
     OUTLOOK_APPLESCRIPT = "outlook.applescript"
+    OUTLOOK_COM = "outlook.com"
     OUTLOOK_UI = "outlook.ui"

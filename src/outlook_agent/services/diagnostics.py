@@ -58,8 +58,9 @@ class DiagnosticsService:
                 remediation=(
                     None
                     if permissions.automation
-                    else "Grant Automation access: System Settings > Privacy & Security "
-                    "> Automation > (your MCP host) > Microsoft Outlook."
+                    else "Ensure classic Microsoft Outlook is installed and launched once. "
+                    "macOS: grant Automation access (System Settings > Privacy & Security > "
+                    "Automation). Windows: the COM automation model must be reachable."
                 ),
             )
         )

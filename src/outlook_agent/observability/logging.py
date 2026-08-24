@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
-from typing import cast
 
 import structlog
-from structlog.typing import EventDict, WrappedLogger
 
 # Correlation id for the current request/operation; empty when unset.
 _correlation_id: ContextVar[str] = ContextVar("correlation_id", default="")
@@ -42,14 +40,14 @@ def get_correlation_id() -> str:
     return _correlation_id.get()
 
 
-def _add_correlation_id(_logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
+def _add_correlation_id(_logger: object, _method: str, event_dict: dict) -> dict:
     cid = _correlation_id.get()
     if cid:
         event_dict.setdefault("correlation_id", cid)
     return event_dict
 
 
-def _redact(_logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
+def _redact(_logger: object, _method: str, event_dict: dict) -> dict:
     for key in list(event_dict.keys()):
         lowered = key.lower()
         if any(sub in lowered for sub in _REDACT_SUBSTRINGS):
@@ -67,7 +65,9 @@ def configure_logging(*, json: bool = True, level: str = "INFO") -> None:
         return
     logging.basicConfig(format="%(message)s", level=getattr(logging, level.upper(), logging.INFO))
     renderer = (
-        structlog.processors.JSONRenderer() if json else structlog.dev.ConsoleRenderer(colors=False)
+        structlog.processors.JSONRenderer()
+        if json
+        else structlog.dev.ConsoleRenderer(colors=False)
     )
     structlog.configure(
         processors=[
@@ -88,4 +88,4 @@ def configure_logging(*, json: bool = True, level: str = "INFO") -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Return a bound structlog logger."""
-    return cast(structlog.stdlib.BoundLogger, structlog.get_logger(name))
+    return structlog.get_logger(name)

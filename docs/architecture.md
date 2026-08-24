@@ -68,7 +68,8 @@ client of the same services and REST API — it does not need to understand MCP.
 | `outlook_agent/main.py` | Composition root / DI wiring; builds providers + services. |
 | `outlook_agent/domain/` | Pure Pydantic v2 models + capability + diagnostics types. No I/O. |
 | `outlook_agent/providers/base.py` | `OutlookProvider` Protocol + capability contract. |
-| `outlook_agent/providers/outlook/applescript/` | `executor.py`, `scripts.py`, `parsers.py`, `provider.py`. Only place `osascript` runs. |
+| `outlook_agent/providers/outlook/applescript/` | `executor.py`, `scripts.py`, `parsers.py`, `provider.py`. Only place `osascript` runs (macOS). |
+| `outlook_agent/providers/outlook/com/` | `executor.py`, `provider.py`. Only place `win32com` runs (Windows classic Outlook). |
 | `outlook_agent/providers/outlook/ui/` | Deferred New-Outlook UI fallback. |
 | `outlook_agent/providers/outlook/factory.py` | Selects/combines providers, aggregates capabilities. |
 | `outlook_agent/services/` | Application services; provider-agnostic orchestration. |

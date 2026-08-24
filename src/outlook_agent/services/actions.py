@@ -203,9 +203,8 @@ class ActionService:
         except Exception as exc:  # provider/handler failure — record and surface.
             action.result = ActionResult(success=False, detail=str(exc))
             await self._transition(action, ActionStatus.FAILED)
-            await self._audit_confirm(
-                action, approved=True, actor=authorized_by, correlation_id=correlation_id
-            )
+            await self._audit_confirm(action, approved=True, actor=authorized_by,
+                                      correlation_id=correlation_id)
             raise
 
         action.result = result

@@ -37,5 +37,7 @@ class SqliteAuditLog:
 
     def _events(self) -> list[AuditEvent]:
         with session_scope(self._factory) as session:
-            records = session.execute(select(AuditRecord).order_by(AuditRecord.id)).scalars().all()
+            records = session.execute(
+                select(AuditRecord).order_by(AuditRecord.id)
+            ).scalars().all()
             return [AuditEvent.model_validate_json(r.payload) for r in records]

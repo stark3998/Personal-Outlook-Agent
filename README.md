@@ -30,12 +30,15 @@ See [docs/architecture.md](docs/architecture.md) and the research in
 
 ## Requirements
 
-- macOS with **classic** Microsoft Outlook installed and running (for live use).
+- **macOS** with classic Microsoft Outlook (AppleScript provider), or **Windows** with
+  classic Microsoft Outlook (COM provider). The provider is auto-selected by platform
+  (`OUTLOOK_AGENT_PROVIDER=auto`); force one with `com` or `applescript`.
 - Python 3.13+, [uv](https://docs.astral.sh/uv/).
-- Automation permission for Outlook (System Settings → Privacy & Security → Automation).
+- macOS: Automation permission for Outlook. Windows: `pywin32` (installed automatically)
+  and Outlook registered as a COM server.
 
-> The codebase imports and its test suite runs on any OS; live Outlook access requires
-> macOS because it shells out to `osascript`.
+> The codebase imports and its test suite runs on any OS; live Outlook access requires the
+> matching platform (macOS `osascript` or Windows COM).
 
 ## Quickstart
 

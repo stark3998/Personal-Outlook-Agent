@@ -38,9 +38,8 @@ async def test_prepare_and_confirm_across_instances(factory) -> None:
     )
 
     # A fresh ActionService (simulating another process) sees the pending action and confirms.
-    svc_b = ActionService(
-        SqliteApprovalStore(factory), SqliteAuditLog(factory), default_handlers(provider)
-    )
+    svc_b = ActionService(SqliteApprovalStore(factory), SqliteAuditLog(factory),
+                          default_handlers(provider))
     pending = await svc_b.pending()
     assert [a.action_id for a in pending] == [token.action_id]
     result = await svc_b.confirm(token.action_id, token.token)

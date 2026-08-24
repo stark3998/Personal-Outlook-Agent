@@ -16,6 +16,7 @@ class ProviderKind(StrEnum):
     """Which Outlook provider the platform should use."""
 
     APPLESCRIPT = "applescript"
+    COM = "com"
     UI = "ui"
     AUTO = "auto"
 
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     )
 
     # Provider
-    provider: ProviderKind = ProviderKind.APPLESCRIPT
+    provider: ProviderKind = ProviderKind.AUTO
     applescript_timeout: float = 30.0
     applescript_large_timeout: float = 120.0
 
