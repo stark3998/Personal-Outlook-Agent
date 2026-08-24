@@ -51,6 +51,46 @@ class EmailCacheRepository:
         with session_scope(self._factory) as session:
             return session.query(EmailRecord).count()
 
+    def folder_item_ids(self, account_id: str, folder_id: str) -> set[str]:
+        """Return the set of cached item ids for a folder."""
+        with session_scope(self._factory) as session:
+            rows = (
+                session.execute(
+                    select(EmailRecord.item_id).where(
+                        EmailRecord.account_id == account_id,
+                        EmailRecord.folder_id == folder_id,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            return set(rows)
+
+    def prune_missing(self, account_id: str, folder_id: str, present_ids: set[str]) -> int:
+        """Delete cached emails in a folder whose ids are not in ``present_ids``.
+
+        Returns the number of rows removed. Only meaningful when ``present_ids`` reflects
+        the full current contents of the folder.
+        """
+        removed = 0
+        with session_scope(self._factory) as session:
+            records = (
+                session.execute(
+                    select(EmailRecord).where(
+                        EmailRecord.account_id == account_id,
+                        EmailRecord.folder_id == folder_id,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for record in records:
+                if record.item_id not in present_ids:
+                    fts.drop_email(session.connection(), record.id)
+                    session.delete(record)
+                    removed += 1
+        return removed
+
     @staticmethod
     def _find(session: Session, ref: EmailRef) -> EmailRecord | None:
         return session.execute(

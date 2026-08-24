@@ -26,6 +26,9 @@ class SyncResult(BaseModel):
     synced: int
     cache_total: int
     at: datetime
+    new: int = 0
+    removed: int = 0
+    incremental: bool = False
 
 
 class SyncService:
@@ -52,9 +55,67 @@ class SyncService:
             account_id=account_id,
             folder_id=folder_id,
             synced=len(summaries),
+            new=len(summaries),
             cache_total=self._cache.count(),
             at=now,
         )
+
+    async def incremental_sync(
+        self,
+        account_id: str,
+        folder_id: str,
+        *,
+        limit: int = 200,
+        detect_deletions: bool = False,
+    ) -> SyncResult:
+        """Upsert only messages newer than the last sync, optionally pruning deletions.
+
+        Only messages received after ``last_synced_at`` are re-cached, so repeat runs are
+        cheap. When ``detect_deletions`` is set, cached rows for the folder no longer
+        present in the pulled window are removed (accurate only when ``limit`` covers the
+        whole folder).
+        """
+        since = self._last_synced_at(account_id, folder_id)
+        summaries = await self._provider.list_emails(account_id, folder_id, limit=limit)
+        new = 0
+        newest = since
+        present: set[str] = set()
+        for summary in summaries:
+            present.add(summary.ref.item_id)
+            received = summary.received_at
+            if since is not None and received is not None and received <= since:
+                continue
+            self._cache.upsert(summary)
+            new += 1
+            if received is not None and (newest is None or received > newest):
+                newest = received
+
+        removed = 0
+        if detect_deletions:
+            removed = self._cache.prune_missing(account_id, folder_id, present)
+
+        now = datetime.now(UTC)
+        self._record_state(account_id, folder_id, len(summaries), newest or now)
+        return SyncResult(
+            account_id=account_id,
+            folder_id=folder_id,
+            synced=new,
+            new=new,
+            removed=removed,
+            cache_total=self._cache.count(),
+            at=now,
+            incremental=True,
+        )
+
+    def _last_synced_at(self, account_id: str, folder_id: str) -> datetime | None:
+        with session_scope(self._factory) as session:
+            state = session.execute(
+                select(SyncState).where(
+                    SyncState.account_id == account_id,
+                    SyncState.folder_id == folder_id,
+                )
+            ).scalar_one_or_none()
+            return state.last_synced_at if state else None
 
     def _record_state(self, account_id: str, folder_id: str, count: int, when: datetime) -> None:
         with session_scope(self._factory) as session:

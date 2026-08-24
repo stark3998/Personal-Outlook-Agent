@@ -39,6 +39,11 @@ def index_email(
     )
 
 
+def drop_email(conn: Connection, email_id: int) -> None:
+    """Remove an email's row from the FTS index."""
+    conn.execute(text("DELETE FROM emails_fts WHERE email_id = :eid"), {"eid": email_id})
+
+
 def search_ids(conn: Connection, query: str, *, limit: int = 25) -> list[int]:
     """Return email row ids matching an FTS query, best matches first."""
     rows = conn.execute(

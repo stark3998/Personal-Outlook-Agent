@@ -186,18 +186,76 @@ def summarize(
     _print({"summary": asyncio.run(container.intelligence.summarize_email(ref))})
 
 
+@app.command("summarize-inbox")
+def summarize_inbox(
+    account_id: str = typer.Option(..., "--account-id"),
+    folder_id: str = typer.Option(..., "--folder-id"),
+    limit: int = typer.Option(20, "--limit"),
+) -> None:
+    """Summarize the most recent messages in a folder."""
+    container = build_container()
+    summary = asyncio.run(
+        container.intelligence.summarize_inbox(account_id, folder_id, limit=limit)
+    )
+    _print({"summary": summary})
+
+
+@app.command()
+def unanswered(
+    account_id: str = typer.Option(..., "--account-id"),
+    folder_id: str = typer.Option(..., "--folder-id"),
+    limit: int = typer.Option(50, "--limit"),
+) -> None:
+    """Find inbox messages from others awaiting a reply from me."""
+    container = build_container()
+    _print(asyncio.run(container.intelligence.find_unanswered(account_id, folder_id, limit=limit)))
+
+
+@app.command()
+def followups(
+    account_id: str = typer.Option(..., "--account-id"),
+    sent_folder_id: str = typer.Option(..., "--sent-folder-id"),
+    limit: int = typer.Option(50, "--limit"),
+) -> None:
+    """Find messages I sent that are awaiting a reply."""
+    container = build_container()
+    _print(
+        asyncio.run(container.intelligence.find_followups(account_id, sent_folder_id, limit=limit))
+    )
+
+
+@app.command("meeting-prep")
+def meeting_prep(
+    event_id: str = typer.Argument(...),
+    account_id: str = typer.Option(..., "--account-id"),
+) -> None:
+    """Assemble a briefing for an upcoming event from related mail."""
+    container = build_container()
+    _print(asyncio.run(container.intelligence.meeting_prep(account_id, event_id)))
+
+
 @app.command()
 def sync(
     account_id: str = typer.Option(..., "--account-id"),
     folder_id: str = typer.Option(..., "--folder-id"),
     limit: int = typer.Option(200, "--limit"),
+    incremental: bool = typer.Option(False, "--incremental"),
+    detect_deletions: bool = typer.Option(False, "--detect-deletions"),
 ) -> None:
     """Sync a folder into the local SQLite cache/index."""
     from outlook_agent.storage.factory import build_sync_service
 
     container = build_container()
     service = build_sync_service(container.provider)
-    _print(asyncio.run(service.sync_folder(account_id, folder_id, limit=limit)))
+    if incremental:
+        result = asyncio.run(
+            service.incremental_sync(
+                account_id, folder_id, limit=limit, detect_deletions=detect_deletions
+            )
+        )
+    else:
+        result = asyncio.run(service.sync_folder(account_id, folder_id, limit=limit))
+    _print(result)
 
 
 if __name__ == "__main__":

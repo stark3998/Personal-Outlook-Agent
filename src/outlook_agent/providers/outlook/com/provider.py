@@ -101,11 +101,12 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
 
 def _internet_message_id(item: Any) -> str | None:
     try:
-        return item.PropertyAccessor.GetProperty(
+        value = item.PropertyAccessor.GetProperty(
             "http://schemas.microsoft.com/mapi/proptag/0x1035001F"
         )
     except Exception:  # noqa: BLE001
         return None
+    return str(value) if value else None
 
 
 def _sender(item: Any) -> Recipient | None:
@@ -547,9 +548,7 @@ class OutlookCOMProvider:
         def fn(_app: Any, ns: Any) -> Folder:
             folder = ns.GetFolderFromID(folder_id, account_id)
             folder.Name = name
-            return Folder(
-                provider=_NAME, account_id=account_id, folder_id=folder_id, name=name
-            )
+            return Folder(provider=_NAME, account_id=account_id, folder_id=folder_id, name=name)
 
         return await self._exec.run(fn)
 

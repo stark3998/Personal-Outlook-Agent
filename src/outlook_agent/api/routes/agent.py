@@ -8,8 +8,13 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from outlook_agent.api.dependencies import get_intelligence_service
-from outlook_agent.domain import EmailRef, ProviderName
-from outlook_agent.services.intelligence import ActionItems, IntelligenceService, ProposedReply
+from outlook_agent.domain import EmailRef, EmailSummary, ProviderName
+from outlook_agent.services.intelligence import (
+    ActionItems,
+    IntelligenceService,
+    MeetingPrep,
+    ProposedReply,
+)
 
 router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 
@@ -72,3 +77,61 @@ async def prepare_reply(
     """Generate a reply proposal (optionally saved as a draft). Never sends."""
     ref = _ref(body.account_id, body.folder_id, body.item_id, None)
     return await service.prepare_reply(ref, body.instructions, create_draft=body.create_draft)
+
+
+@router.get("/summarize/inbox", response_model=dict)
+async def summarize_inbox(
+    service: Annotated[IntelligenceService, Depends(get_intelligence_service)],
+    account_id: Annotated[str, Query()],
+    folder_id: Annotated[str, Query()],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> dict[str, str]:
+    """Summarize the most recent messages in a folder."""
+    return {"summary": await service.summarize_inbox(account_id, folder_id, limit=limit)}
+
+
+@router.get("/unanswered", response_model=list[EmailSummary])
+async def find_unanswered(
+    service: Annotated[IntelligenceService, Depends(get_intelligence_service)],
+    account_id: Annotated[str, Query()],
+    folder_id: Annotated[str, Query()],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[EmailSummary]:
+    """Find inbox messages from others with no later reply from me."""
+    return await service.find_unanswered(account_id, folder_id, limit=limit)
+
+
+@router.get("/followups", response_model=list[EmailSummary])
+async def find_followups(
+    service: Annotated[IntelligenceService, Depends(get_intelligence_service)],
+    account_id: Annotated[str, Query()],
+    sent_folder_id: Annotated[str, Query()],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[EmailSummary]:
+    """Find messages I sent that are awaiting a reply."""
+    return await service.find_followups(account_id, sent_folder_id, limit=limit)
+
+
+@router.get("/promised-actions", response_model=dict)
+async def find_promised_actions(
+    service: Annotated[IntelligenceService, Depends(get_intelligence_service)],
+    account_id: Annotated[str, Query()],
+    sent_folder_id: Annotated[str, Query()],
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> dict[str, list[str]]:
+    """Detect commitments I made in recently sent mail."""
+    return {
+        "promised_actions": await service.find_promised_actions(
+            account_id, sent_folder_id, limit=limit
+        )
+    }
+
+
+@router.get("/meeting-prep", response_model=MeetingPrep)
+async def meeting_prep(
+    service: Annotated[IntelligenceService, Depends(get_intelligence_service)],
+    account_id: Annotated[str, Query()],
+    event_id: Annotated[str, Query()],
+) -> MeetingPrep:
+    """Assemble a briefing for an upcoming event from related mail."""
+    return await service.meeting_prep(account_id, event_id)

@@ -10,6 +10,7 @@ from outlook_agent.domain import (
     EmailRef,
     EmailSummary,
     Folder,
+    SpecialFolderType,
 )
 from outlook_agent.domain.action import ActionType
 from outlook_agent.providers.base import CapabilityUnavailable, OutlookProvider
@@ -41,6 +42,15 @@ class MailService:
         """List folders, optionally scoped to one account."""
         self._require(Capability.FOLDERS_READ)
         return await self._provider.list_folders(account_id)
+
+    async def find_special_folder(
+        self, account_id: str, special: SpecialFolderType
+    ) -> Folder | None:
+        """Return the first folder of a given special type for an account, if any."""
+        for folder in await self.list_folders(account_id):
+            if folder.special_type is special:
+                return folder
+        return None
 
     async def list_emails(
         self, account_id: str, folder_id: str, *, limit: int = 25, offset: int = 0

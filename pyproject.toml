@@ -51,7 +51,15 @@ addopts = "-ra"
 [tool.coverage.run]
 source = ["src/outlook_agent"]
 branch = true
-omit = ["src/outlook_agent/__init__.py"]
+# These modules only execute against a live Outlook (osascript / win32com) and are
+# verified by on-device tests, not the hermetic unit suite.
+omit = [
+    "src/outlook_agent/__init__.py",
+    "src/outlook_agent/providers/outlook/applescript/executor.py",
+    "src/outlook_agent/providers/outlook/applescript/provider.py",
+    "src/outlook_agent/providers/outlook/com/executor.py",
+    "src/outlook_agent/providers/outlook/com/provider.py",
+]
 
 [tool.coverage.report]
 fail_under = 80

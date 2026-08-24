@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from outlook_agent.config import Settings, get_settings
 from outlook_agent.intelligence.base import LLMError
@@ -44,7 +46,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.container = build_container(settings)
 
     @app.middleware("http")
-    async def _correlation_middleware(request: Request, call_next):  # noqa: ANN001, ANN202
+    async def _correlation_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         cid = request.headers.get("x-correlation-id") or uuid4().hex
         set_correlation_id(cid)
         response = await call_next(request)

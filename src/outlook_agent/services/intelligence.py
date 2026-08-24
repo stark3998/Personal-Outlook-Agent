@@ -9,9 +9,17 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from outlook_agent.domain import Draft, Email, EmailRef, Thread
+from outlook_agent.domain import (
+    CalendarEvent,
+    Draft,
+    Email,
+    EmailRef,
+    EmailSummary,
+    Thread,
+)
 from outlook_agent.intelligence.base import LLMProvider
 from outlook_agent.security import sanitization
+from outlook_agent.services.calendar import CalendarService
 from outlook_agent.services.drafts import DraftService
 from outlook_agent.services.mail import MailService
 from outlook_agent.services.threads import ThreadService
@@ -33,8 +41,20 @@ class ProposedReply(BaseModel):
     draft: Draft | None = None
 
 
+class MeetingPrep(BaseModel):
+    """A meeting-preparation briefing assembled from an event and related mail."""
+
+    event: CalendarEvent
+    related: list[EmailSummary]
+    briefing: str
+
+
 class IntelligenceService:
-    """Summaries, extraction, and reply proposals. Depends only on interfaces."""
+    """Summaries, extraction, reply proposals, and inbox analytics.
+
+    Depends only on other services (never a concrete provider). Every email-derived string
+    is wrapped with the sanitization boundary before it reaches the LLM.
+    """
 
     def __init__(
         self,
@@ -42,11 +62,13 @@ class IntelligenceService:
         mail: MailService,
         threads: ThreadService,
         drafts: DraftService,
+        calendar: CalendarService | None = None,
     ) -> None:
         self._llm = llm
         self._mail = mail
         self._threads = threads
         self._drafts = drafts
+        self._calendar = calendar
 
     @staticmethod
     def _email_text(email: Email) -> str:
@@ -92,3 +114,102 @@ class IntelligenceService:
         if create_draft:
             proposal.draft = await self._drafts.reply(ref, body=proposal.body)
         return proposal
+
+    # --- Composite inbox analytics (Phase 16) -----------------------------------------
+
+    async def _my_addresses(self) -> set[str]:
+        accounts = await self._mail.list_accounts()
+        return {a.email_address.lower() for a in accounts if a.email_address}
+
+    @staticmethod
+    def _is_me(summary: EmailSummary, mine: set[str]) -> bool:
+        addr = summary.sender.address if summary.sender else None
+        return bool(addr and addr.lower() in mine)
+
+    async def summarize_inbox(self, account_id: str, folder_id: str, *, limit: int = 20) -> str:
+        """Summarize the most recent messages in a folder as an inbox digest."""
+        summaries = await self._mail.list_emails(account_id, folder_id, limit=limit)
+        lines = [
+            f"- {s.subject or '(no subject)'} — from "
+            f"{(s.sender.name or s.sender.address) if s.sender else 'unknown'}"
+            f"{' [unread]' if not s.is_read else ''}"
+            for s in summaries
+        ]
+        digest = sanitization.wrap_untrusted("\n".join(lines))
+        return await self._llm.summarize(
+            digest, instructions="Summarize this inbox into themes and what needs attention."
+        )
+
+    async def find_unanswered(
+        self, account_id: str, folder_id: str, *, limit: int = 50
+    ) -> list[EmailSummary]:
+        """Return inbox messages from others that have no later reply from me."""
+        mine = await self._my_addresses()
+        summaries = await self._mail.list_emails(account_id, folder_id, limit=limit)
+        unanswered: list[EmailSummary] = []
+        for s in summaries:
+            if self._is_me(s, mine):
+                continue
+            if not await self._replied_after(s, mine):
+                unanswered.append(s)
+        return unanswered
+
+    async def find_followups(
+        self, account_id: str, sent_folder_id: str, *, limit: int = 50
+    ) -> list[EmailSummary]:
+        """Return messages I sent that are the latest in their thread (awaiting a reply)."""
+        mine = await self._my_addresses()
+        sent = await self._mail.list_emails(account_id, sent_folder_id, limit=limit)
+        followups: list[EmailSummary] = []
+        for s in sent:
+            thread = await self._thread_for(s)
+            if not thread.messages:
+                continue
+            last = thread.messages[-1]
+            if self._is_me(last, mine) and last.ref.item_id == s.ref.item_id:
+                followups.append(s)
+        return followups
+
+    async def find_promised_actions(
+        self, account_id: str, sent_folder_id: str, *, limit: int = 25
+    ) -> list[str]:
+        """Use the LLM to detect commitments I made in recently sent mail."""
+        sent = await self._mail.list_emails(account_id, sent_folder_id, limit=limit)
+        joined = "\n\n---\n\n".join(f"{s.subject or ''}: {s.preview or ''}" for s in sent)
+        return await self._llm.extract(
+            sanitization.wrap_untrusted(joined), "commitments or promises the sender made"
+        )
+
+    async def meeting_prep(self, account_id: str, event_id: str) -> MeetingPrep:
+        """Assemble a briefing for an upcoming event from related mail."""
+        if self._calendar is None:
+            raise RuntimeError("meeting_prep requires a CalendarService")
+        event = await self._calendar.get_event(account_id, event_id)
+        related: list[EmailSummary] = []
+        if event.subject:
+            related = await self._mail.search_emails(event.subject, limit=10)
+        context = sanitization.wrap_untrusted(
+            f"Meeting: {event.subject}\nWhen: {event.start}\nLocation: {event.location}\n\n"
+            + "\n".join(f"- {r.subject}: {r.preview or ''}" for r in related)
+        )
+        briefing = await self._llm.summarize(
+            context, instructions="Prepare me for this meeting: context, open items, questions."
+        )
+        return MeetingPrep(event=event, related=related, briefing=briefing)
+
+    async def _thread_for(self, summary: EmailSummary) -> Thread:
+        conv = summary.ref.conversation_id
+        if conv:
+            return await self._threads.get_thread(conv, account_id=summary.ref.account_id)
+        return Thread(messages=[summary], message_count=1)
+
+    async def _replied_after(self, summary: EmailSummary, mine: set[str]) -> bool:
+        thread = await self._thread_for(summary)
+        anchor = summary.received_at
+        for m in thread.messages:
+            if not self._is_me(m, mine):
+                continue
+            when = m.sent_at or m.received_at
+            if anchor is None or (when is not None and when >= anchor):
+                return True
+        return False

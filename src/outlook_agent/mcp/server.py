@@ -283,6 +283,49 @@ async def agent_prepare_reply(
     return proposal.model_dump(mode="json")
 
 
+@mcp.tool
+async def agent_summarize_inbox(account_id: str, folder_id: str, limit: int = 20) -> dict[str, str]:
+    """Summarize the most recent messages in a folder into an inbox digest."""
+    summary = await _container.intelligence.summarize_inbox(account_id, folder_id, limit=limit)
+    return {"summary": summary}
+
+
+@mcp.tool
+async def agent_find_unanswered(
+    account_id: str, folder_id: str, limit: int = 50
+) -> list[dict[str, Any]]:
+    """Find inbox messages from others that have no later reply from me."""
+    found = await _container.intelligence.find_unanswered(account_id, folder_id, limit=limit)
+    return [s.model_dump(mode="json") for s in found]
+
+
+@mcp.tool
+async def agent_find_followups(
+    account_id: str, sent_folder_id: str, limit: int = 50
+) -> list[dict[str, Any]]:
+    """Find messages I sent that are the latest in their thread (awaiting a reply)."""
+    found = await _container.intelligence.find_followups(account_id, sent_folder_id, limit=limit)
+    return [s.model_dump(mode="json") for s in found]
+
+
+@mcp.tool
+async def agent_find_promised_actions(
+    account_id: str, sent_folder_id: str, limit: int = 25
+) -> dict[str, Any]:
+    """Detect commitments I made in recently sent mail."""
+    items = await _container.intelligence.find_promised_actions(
+        account_id, sent_folder_id, limit=limit
+    )
+    return {"promised_actions": items}
+
+
+@mcp.tool
+async def agent_meeting_prep(account_id: str, event_id: str) -> dict[str, Any]:
+    """Assemble a briefing for an upcoming event from related mail."""
+    prep = await _container.intelligence.meeting_prep(account_id, event_id)
+    return prep.model_dump(mode="json")
+
+
 def main() -> None:
     """Entry point for ``outlook-agent-mcp``: run the server over stdio."""
     mcp.run()

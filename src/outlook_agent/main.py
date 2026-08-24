@@ -84,6 +84,7 @@ def build_container(
     mail = MailService(provider, actions)
     threads = ThreadService(provider)
     drafts = DraftService(provider, actions)
+    calendar = CalendarService(provider, actions)
     return Container(
         settings=settings,
         provider=provider,
@@ -94,11 +95,11 @@ def build_container(
         actions=actions,
         drafts=drafts,
         folders=FolderService(provider, actions),
-        calendar=CalendarService(provider, actions),
+        calendar=calendar,
         contacts=ContactService(provider),
         tasks=TaskService(provider),
         notes=NoteService(provider),
-        intelligence=IntelligenceService(llm, mail, threads, drafts),
+        intelligence=IntelligenceService(llm, mail, threads, drafts, calendar),
     )
 
 

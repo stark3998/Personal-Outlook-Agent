@@ -70,7 +70,11 @@ class SqliteApprovalStore:
 
     def _pending(self) -> list[Action]:
         with session_scope(self._factory) as session:
-            records = session.execute(
-                select(ActionRecord).where(ActionRecord.status == ActionStatus.PENDING.value)
-            ).scalars().all()
+            records = (
+                session.execute(
+                    select(ActionRecord).where(ActionRecord.status == ActionStatus.PENDING.value)
+                )
+                .scalars()
+                .all()
+            )
             return [Action.model_validate_json(r.payload) for r in records]

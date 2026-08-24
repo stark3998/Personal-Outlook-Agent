@@ -59,3 +59,21 @@ async def test_sync_folder_populates_cache(tmp_path) -> None:
     result = await service.sync_folder("1", "10")
     assert result.synced == 2
     assert result.cache_total == 2
+
+
+def test_prune_missing_removes_absent_ids(cache: EmailCacheRepository) -> None:
+    cache.upsert(_summary("100", "A"))
+    cache.upsert(_summary("101", "B"))
+    removed = cache.prune_missing("1", "10", {"100"})
+    assert removed == 1
+    assert cache.folder_item_ids("1", "10") == {"100"}
+
+
+async def test_incremental_sync_reports_delta(tmp_path) -> None:
+    provider = FakeOutlookProvider()
+    service = build_sync_service(provider, url=f"sqlite:///{tmp_path / 'inc.db'}")
+    await service.sync_folder("1", "10")
+    result = await service.incremental_sync("1", "10", detect_deletions=True)
+    assert result.incremental is True
+    assert result.removed == 0
+    assert result.cache_total == 2

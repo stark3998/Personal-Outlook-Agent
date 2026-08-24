@@ -23,8 +23,8 @@ try:  # pragma: no cover - import guard exercised only by platform
 
     _COM_IMPORTED = True
 except ImportError:  # pragma: no cover
-    pythoncom = None  # type: ignore[assignment]
-    win32com = None  # type: ignore[assignment]
+    pythoncom = None
+    win32com = None
     _COM_IMPORTED = False
 
 T = TypeVar("T")
