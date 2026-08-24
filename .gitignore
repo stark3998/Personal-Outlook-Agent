@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Env & secrets — never commit real secrets
+.env
+*.local
+
+# SQLite cache/index
+*.db
+*.sqlite3
+*.db*
+# OS
+.DS_Store
+
+research/

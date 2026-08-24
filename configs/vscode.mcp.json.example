@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "outlook": {
+      "type": "stdio",
+      "command": "outlook-agent-mcp",
+      "args": [],
+      "env": {
+        "OUTLOOK_AGENT_PROVIDER": "applescript"
+      }
+    }
+  }
+}

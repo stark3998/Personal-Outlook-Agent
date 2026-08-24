@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "outlook": {
+      "command": "outlook-agent-mcp",
+      "args": [],
+      "env": {
+        "OUTLOOK_AGENT_PROVIDER": "applescript"
+      }
+    }
+  }
+}

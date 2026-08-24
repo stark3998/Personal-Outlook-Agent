@@ -1,0 +1,33 @@
+{
+  "extract_action_items": [
+    {
+      "name": "two_items",
+      "model_output": "- Call Bob about the contract\n- Send the Q3 report",
+      "expected": ["Call Bob about the contract", "Send the Q3 report"]
+    },
+    {
+      "name": "no_items",
+      "model_output": "NONE",
+      "expected": []
+    },
+    {
+      "name": "items_with_surrounding_noise",
+      "model_output": "Here are the action items:\n- Review the PR\nThat's all.",
+      "expected": ["Review the PR"]
+    }
+  ],
+  "classify": [
+    {
+      "name": "picks_valid_label",
+      "model_output": "urgent",
+      "labels": ["urgent", "normal", "low"],
+      "expected": "urgent"
+    },
+    {
+      "name": "falls_back_on_invalid_label",
+      "model_output": "totally-made-up",
+      "labels": ["urgent", "normal", "low"],
+      "expected": "urgent"
+    }
+  ]
+}

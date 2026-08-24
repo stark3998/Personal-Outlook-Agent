@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd agent for periodic background sync (Milestone 14).
+     Install: copy to ~/Library/LaunchAgents/com.personal.outlook-agent.sync.plist
+     then: launchctl load ~/Library/LaunchAgents/com.personal.outlook-agent.sync.plist
+     Adjust the program path to your installed console script. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.personal.outlook-agent.sync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>outlook-agent</string>
+        <string>sync</string>
+        <string>--account-id</string>
+        <string>REPLACE_ACCOUNT_ID</string>
+        <string>--folder-id</string>
+        <string>REPLACE_FOLDER_ID</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>900</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>/tmp/outlook-agent-sync.err</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/outlook-agent-sync.out</string>
+</dict>
+</plist>

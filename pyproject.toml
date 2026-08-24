@@ -1,0 +1,87 @@
+[project]
+name = "personal-outlook-agent"
+version = "0.1.0"
+description = "Local-first Outlook automation platform for macOS (MCP + REST + CLI over shared services)."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "personal-outlook-agent" }]
+dependencies = [
+    "fastapi>=0.115",
+    "fastmcp>=2.0",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "sqlalchemy>=2.0",
+    "uvicorn[standard]>=0.30",
+    "typer>=0.12",
+    "structlog>=24.4",
+    "agent-framework>=1.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.scripts]
+outlook-agent = "outlook_agent.cli.main:app"
+outlook-agent-mcp = "outlook_agent.mcp.server:main"
+outlook-agent-api = "outlook_agent.main:run_api"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# agent-framework and its providers ship pre-release sub-dependencies.
+prerelease = "allow"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/outlook_agent"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["src/outlook_agent"]
+branch = true
+omit = ["src/outlook_agent/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "S"]
+ignore = ["S101"]  # allow assert in tests
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+# These modules embed AppleScript source; long JSON-building literals cannot be wrapped.
+"src/outlook_agent/providers/outlook/applescript/scripts.py" = ["E501"]
+"src/outlook_agent/providers/outlook/applescript/scripts_write.py" = ["E501"]
+"src/outlook_agent/providers/outlook/applescript/scripts_pim.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+strict = true
+mypy_path = "src"
+ignore_missing_imports = true
