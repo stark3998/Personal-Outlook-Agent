@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd user agent for the Outlook Agent REST API.
+     Starts outlook-agent-api at login and keeps it alive.
+
+     SETUP:
+       1. Copy to ~/Library/LaunchAgents/ (update paths below)
+       2. launchctl load ~/Library/LaunchAgents/com.personal.outlook-agent.api.plist
+          (or: launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.personal.outlook-agent.api.plist)
+
+     MANAGE:
+       Start : launchctl start com.personal.outlook-agent.api
+       Stop  : launchctl stop  com.personal.outlook-agent.api
+       Unload: launchctl unload ~/Library/LaunchAgents/com.personal.outlook-agent.api.plist
+       Logs  : tail -f /tmp/outlook-agent-api.out
+               tail -f /tmp/outlook-agent-api.err
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.personal.outlook-agent.api</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- REPLACE with the absolute path to your venv's outlook-agent-api binary -->
+        <string>/Users/jaycrapple/Documents/GitHub/Personal-Outlook-Agent/.venv/bin/outlook-agent-api</string>
+    </array>
+
+    <!-- Set any env vars that aren't in the system environment.
+         The .env file in the project root is also read automatically. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>OUTLOOK_AGENT_PROVIDER</key>
+        <string>applescript</string>
+        <key>OUTLOOK_AGENT_LOG_JSON</key>
+        <string>true</string>
+    </dict>
+
+    <!-- Working directory so the .env file is found -->
+    <key>WorkingDirectory</key>
+    <string>/Users/jaycrapple/Documents/GitHub/Personal-Outlook-Agent</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/outlook-agent-api.out</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/outlook-agent-api.err</string>
+</dict>
+</plist>

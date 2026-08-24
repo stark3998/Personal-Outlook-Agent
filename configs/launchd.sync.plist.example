@@ -11,8 +11,8 @@
     <string>com.personal.outlook-agent.sync</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/env</string>
-        <string>outlook-agent</string>
+        <!-- REPLACE with the absolute path to your venv's outlook-agent binary -->
+        <string>/Users/jaycrapple/Documents/GitHub/Personal-Outlook-Agent/.venv/bin/outlook-agent</string>
         <string>sync</string>
         <string>--account-id</string>
         <string>REPLACE_ACCOUNT_ID</string>

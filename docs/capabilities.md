@@ -24,7 +24,8 @@ supported — this keeps classic-vs-New-Outlook differences out of the MCP/REST 
 | `notes.read` | Notes | ✅ implemented | ✅ |
 
 **live-verified** = exercised against a real Exchange Online account (Classic Outlook
-16.112.1, macOS) during the initial live testing session.
+16.112.1, macOS). Includes fixes discovered and applied during testing — see
+[troubleshooting.md](troubleshooting.md) for the full list of issues and fixes.
 
 **implemented** = AppleScript written and unit-tested; not explicitly exercised in the live
 session but follows the same patterns as verified operations.

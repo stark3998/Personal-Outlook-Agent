@@ -277,7 +277,11 @@ end tell
 
 
 def list_drafts_script(limit: int) -> str:
-    """List unsent outgoing messages (drafts) as a JSON array."""
+    """List drafts as a JSON array.
+
+    Checks the Exchange Drafts folder first (where ``reply_draft_script`` saves drafts),
+    then falls back to ``outgoing messages`` (open compose windows).
+    """
     return (
         PRELUDE
         + r"""
@@ -285,7 +289,22 @@ tell application "Microsoft Outlook"
     set outItems to {}
     set maxN to """
         + str(limit)
+        + "\n"
+        + _find_exchange_drafts_folder()
         + r"""
+    -- Exchange Drafts folder (server-side drafts saved by reply_draft_script)
+    if draftFolder is not missing value then
+        set dc to count of draftFolder
+        repeat with i from dc to 1 by -1
+            if (count of outItems) >= maxN then exit repeat
+            set d to message i of draftFolder
+"""
+        + _draft_object()
+        + r"""
+            set end of outItems to j
+        end repeat
+    end if
+    -- Also include open compose windows (outgoing messages not yet saved)
     repeat with d in outgoing messages
         if (count of outItems) >= maxN then exit repeat
 """
@@ -323,9 +342,40 @@ end tell
     )
 
 
+def _find_exchange_drafts_folder() -> str:
+    """AppleScript fragment that sets ``draftFolder`` to the Exchange Drafts folder."""
+    return r"""
+    set draftFolder to missing value
+    repeat with f in mail folders
+        set fn to ""
+        try
+            set fn to name of f
+        end try
+        if fn is "Drafts" then
+            set hasAcct to false
+            try
+                set unused to id of (account of f)
+                set hasAcct to true
+            end try
+            if hasAcct then
+                set draftFolder to f
+                exit repeat
+            end if
+        end if
+    end repeat
+"""
+
+
 def reply_draft_script(item_id: str, reply_all: bool, body: str) -> str:
-    """Create a reply (or reply-all) draft for a message and return its id."""
+    """Create a reply (or reply-all) draft and save it to the Exchange Drafts folder.
+
+    Uses ``content`` (HTML property) to inject the body because Outlook compose windows
+    render HTML — setting ``plain text content`` alone does not update the visible area.
+    After setting the body the draft is moved to the Exchange Drafts mail folder so it
+    appears in Outlook's Drafts sidebar. The compose window remains open for review.
+    """
     opts = " with reply to all" if reply_all else ""
+    body_html = f"<p>{body}</p><hr/>"
     return (
         PRELUDE
         + r"""
@@ -336,11 +386,41 @@ tell application "Microsoft Outlook"
     set newMsg to reply to m"""
         + opts
         + r"""
+    -- Inject AI text into HTML body (compose window renders HTML, not plain text)
     try
-        set plain text content of newMsg to """
+        set existHtml to content of newMsg
+        set content of newMsg to """
+        + quote(body_html)
+        + r""" & existHtml
+    on error
+        -- Fall back to plain text if HTML property unavailable
+        try
+            set plain text content of newMsg to """
         + quote(body)
-        + r""" & (plain text content of newMsg)
+        + r""" & return & (plain text content of newMsg)
+        end try
     end try
+    -- Move to Exchange Drafts folder so it appears in Outlook's Drafts sidebar
+    set replySubj to subject of newMsg
+"""
+        + _find_exchange_drafts_folder()
+        + r"""
+    if draftFolder is not missing value then
+        move newMsg to draftFolder
+        -- Find the saved draft by subject (most recent matching item)
+        set dc to count of draftFolder
+        repeat with i from dc to 1 by -1
+            set d to message i of draftFolder
+            set ds to ""
+            try
+                set ds to subject of d
+            end try
+            if ds is replySubj then
+                return (id of d) as string
+            end if
+        end repeat
+    end if
+    -- Fall back: return the outgoing message id if the move failed
     return (id of newMsg) as string
 end tell
 """

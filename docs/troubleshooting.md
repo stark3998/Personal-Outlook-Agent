@@ -175,6 +175,74 @@ collection for unsent messages regardless of which folder they live in).
 
 ---
 
+## Reply draft body text not appearing in the compose window
+
+**Symptom:** Calling the draft-reply tool opens a compose window in Outlook, but the
+AI-generated text is not visible in the window. The reply area appears blank or shows only
+the quoted original message.
+
+**Root cause:** `reply to m` creates a rich-text (HTML) compose window. Outlook renders the
+HTML `content` property — not `plain text content` — in the compose area. Setting only
+`plain text content` updates the internal text/plain part of the message but the visible
+compose window still shows the HTML version, which was not updated.
+
+**Fix:** Changed `reply_draft_script` to set `content` (HTML) instead of `plain text
+content`. The AI body is injected as `<p>body</p><hr/>` prepended to the existing reply
+HTML. Falls back to `plain text content` if the `content` property is unavailable.
+
+---
+
+## Reply draft not saved to Exchange Drafts folder
+
+**Symptom:** After calling the draft-reply tool, the draft appears as an open compose
+window in Outlook but is not visible in the Drafts folder in the sidebar.
+
+**Root cause:** `reply to m` creates an outgoing message (compose window) in the
+`outgoing messages` collection. This is separate from the Exchange Drafts mail folder
+(folder ID 107 on Exchange Online). The agent was returning the outgoing message ID without
+saving to Exchange Drafts.
+
+**Fix:** After setting the body, `reply_draft_script` now does:
+```applescript
+move newMsg to draftFolder  -- draftFolder = Exchange Drafts folder found by name
+```
+The moved message gets a new ID (as a regular mail message in the Drafts folder). The script
+finds that ID by matching subject, then returns it. The compose window remains open for the
+user to review.
+
+**Note:** `close`, `save`, and `delete` do not work on `outgoing message` objects in
+Outlook 16 AppleScript — the compose window cannot be dismissed programmatically.
+
+---
+
+## `outlook-agent folders --account-id` returns empty list
+
+**Symptom:** `outlook-agent folders --account-id 1` returns `[]` even though folders exist.
+
+**Root cause:** The account filter in `list_folders_script` used `return` to skip
+non-matching folders. In AppleScript, `return` exits the **entire program**, not just the
+loop iteration — so the script exits immediately after the first folder is processed.
+
+**Fix:** Rewrote the filter to use an `if/then/end-if` block wrapping the entire
+object-building section, so non-matching iterations are properly skipped and the loop
+continues.
+
+---
+
+## `list_drafts_script` only shows open compose windows, not saved Exchange drafts
+
+**Symptom:** After a reply draft is saved to Exchange Drafts by `reply_draft_script`, it
+doesn't appear in the output of `outlook-agent drafts`.
+
+**Root cause:** `list_drafts_script` only iterated `outgoing messages` (open compose
+windows). After the fix to `reply_draft_script` (which now moves drafts to the Exchange
+Drafts folder), the correct source is the Exchange Drafts mail folder.
+
+**Fix:** `list_drafts_script` now checks the Exchange Drafts folder first (using the same
+name-based folder search), then appends any open compose windows from `outgoing messages`.
+
+---
+
 ## General: verify Classic Outlook is running before testing
 
 Run `outlook-agent diagnostics` before any live test. The structured output shows:

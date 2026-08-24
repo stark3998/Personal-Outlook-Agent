@@ -118,12 +118,16 @@ end tell
 
 def list_folders_script(account_id: str | None) -> str:
     """List mail folders (optionally for one account) as a JSON array."""
-    account_filter = ""
+    # Build the account guard: skip folders whose account ID doesn't match.
+    # Uses an if/then/end-if wrapper (not `return`) so the loop continues properly.
     if account_id is not None:
-        account_filter = (
-            f'    if (({quote(account_id)}) is not "") and '
-            "((accId as string) is not (" + quote(account_id) + ")) then return\n"
+        guard_open = (
+            f'        if ({quote(account_id)}) is "" or (fAccount is ({quote(account_id)})) then\n'
         )
+        guard_close = "        end if\n"
+    else:
+        guard_open = ""
+        guard_close = ""
     return (
         PRELUDE
         + r"""
@@ -156,11 +160,12 @@ tell application "Microsoft Outlook"
             set fAccount to (id of (account of f)) as string
         end try
 """
-        + account_filter
-        + r"""
-        set j to "{\"folder_id\":\"" & my jsonEscape(fId) & "\",\"name\":\"" & my jsonEscape(fName) & "\",\"account_id\":\"" & my jsonEscape(fAccount) & "\",\"parent_id\":\"" & my jsonEscape(fParent) & "\",\"special_type\":" & (fSpecial as string) & ",\"message_count\":" & (fCount as string) & ",\"unread_count\":" & (fUnread as string) & "}"
+        + guard_open
+        + r"""        set j to "{\"folder_id\":\"" & my jsonEscape(fId) & "\",\"name\":\"" & my jsonEscape(fName) & "\",\"account_id\":\"" & my jsonEscape(fAccount) & "\",\"parent_id\":\"" & my jsonEscape(fParent) & "\",\"special_type\":" & (fSpecial as string) & ",\"message_count\":" & (fCount as string) & ",\"unread_count\":" & (fUnread as string) & "}"
         set end of outItems to j
-    end repeat
+"""
+        + guard_close
+        + r"""    end repeat
     set AppleScript's text item delimiters to ","
     set body to outItems as string
     set AppleScript's text item delimiters to ""

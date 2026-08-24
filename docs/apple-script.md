@@ -116,22 +116,88 @@ if (folder type of f as integer) is 10 then ...
 **Workaround used for Inbox detection:** fall back to name matching —
 `f.name.lower() == "inbox"` — when the `folder type`-based lookup returns nothing.
 
-**Workaround used for drafts:** use the `outgoing messages` collection instead of searching
-for a folder with `folder type = 10`:
+**Workaround used for Drafts folder:** locate by name and verify an account is attached
+(Exchange Drafts folders have an account; local "On My Computer" folders may not):
 
 ```applescript
-tell application "Microsoft Outlook"
-    repeat with d in outgoing messages
-        -- each d is an unsent draft
-    end repeat
-end tell
+set draftFolder to missing value
+repeat with f in mail folders
+    set fn to ""
+    try
+        set fn to name of f
+    end try
+    if fn is "Drafts" then
+        set hasAcct to false
+        try
+            set unused to id of (account of f)
+            set hasAcct to true
+        end try
+        if hasAcct then
+            set draftFolder to f
+            exit repeat
+        end if
+    end if
+end repeat
 ```
+
+**Workaround used for listing open compose windows:** `outgoing messages` gives access to
+compose windows that have not been saved to Exchange Drafts yet. Used as a fallback after
+checking the Exchange Drafts folder.
 
 ### 4. Exchange folder IDs differ from local IDs
 
 Classic Outlook's special folder type constants (Inbox=1, Drafts=10, etc.) are for
 "On My Computer" local folders. Exchange Online account folders have different numeric IDs
 (observed: Inbox=108, Drafts=107, Sent Items=111). Do not hardcode folder IDs.
+
+### 5. Reply compose windows use HTML content, not plain text
+
+`reply to m` opens an HTML compose window. The window renders the `content` property (HTML),
+**not** `plain text content`. Setting only `plain text content` updates an internal field
+that is never displayed in the compose area.
+
+```applescript
+-- WRONG: text set but never shown in the compose window
+set plain text content of newMsg to "AI reply" & (plain text content of newMsg)
+
+-- CORRECT: inject into the HTML body that the window actually renders
+set existHtml to content of newMsg
+set content of newMsg to "<p>AI reply</p><hr/>" & existHtml
+```
+
+The compose window cannot be dismissed via AppleScript — `close` and `delete` are not
+supported on `outgoing message` objects in Outlook 16.
+
+### 6. Reply drafts must be moved to Exchange Drafts to appear in Outlook's sidebar
+
+`reply to m` creates an `outgoing message` (compose window). This lives in the
+`outgoing messages` collection, not in the Exchange Drafts mail folder. Outlook's Drafts
+sidebar only shows the Exchange Drafts folder. To make a draft appear there:
+
+```applescript
+move newMsg to draftFolder   -- draftFolder found by name, as shown above
+-- The message gets a new numeric ID after the move
+-- Find it by subject: iterate draftFolder in reverse to locate the saved draft
+```
+
+The compose window remains open after the move. It is an orphaned window that can be closed
+manually by the user.
+
+### 7. Account filter using `return` exits the entire script, not just the loop
+
+A loop guard written as `if condition then return` exits the **whole AppleScript program**
+rather than skipping the current iteration. AppleScript has no `continue` statement; the
+correct pattern is to wrap the loop body in `if/then/end if`:
+
+```applescript
+-- WRONG: exits the program when the first non-matching folder is encountered
+if fAccount is not accountId then return
+
+-- CORRECT: skip the current iteration, continue the loop
+if fAccount is accountId then
+    -- build and append the object
+end if
+```
 
 ## Script structure
 
@@ -146,10 +212,15 @@ Classic Outlook's special folder type constants (Inbox=1, Drafts=10, etc.) are f
 
 ## Known limitations
 
-- `folder type` comparison broken in Outlook 16 — affects `move_to_special_script` (junk
-  mail routing) and any special-folder lookup beyond Inbox.
-- Dates have no timezone info — all times are local to the Mac running the agent.
-- Attachment download is not yet implemented (`mail.attachments` capability is advertised
-  but the download path is a stub).
-- `conversation id` filtering (`whose conversation id is X`) works; reading the property
-  into a variable requires the `tell m` block workaround.
+- **`folder type` comparison broken in Outlook 16** — affects `move_to_special_script`
+  (junk mail routing). All special-folder lookups now use name matching instead, but
+  `move_to_special_script` still uses `folder type` and may silently fail to find the Junk
+  folder. Workaround: pass the folder ID explicitly via `move_message`.
+- **Reply compose window stays open** — `close`, `delete`, and `save` are not supported on
+  `outgoing message` objects. After `reply_draft_script` moves the draft to Exchange
+  Drafts, the compose window remains open. The user must close it manually.
+- **Dates have no timezone info** — all times are local to the Mac running the agent.
+- **Attachment download not implemented** — `mail.attachments` is advertised but the
+  download path is a stub.
+- **`conversation id` in variables** — reading the property requires a `tell m` block (see
+  issue 1 above); the `whose conversation id is X` filter form works at top level.
