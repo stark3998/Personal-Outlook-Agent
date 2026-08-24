@@ -150,8 +150,11 @@ Outlook provider has zero knowledge of Foundry.
 | 13 | New Outlook UI provider | 🧩 placeholder |
 | 14 | Enhanced diagnostics, packaging, launchd, web-app support | ✅ |
 
-Everything AppleScript-backed (Milestones 5, 7, 8, 12) is implemented but **requires
-live-Mac verification**; the write/PIM AppleScript in `scripts_write.py` / `scripts_pim.py`
-and the corresponding provider methods have been exercised only against the in-memory fake
-provider. The New Outlook UI provider (Milestone 13) is an isolated placeholder that
-advertises no capabilities.
+Milestones 0–12 and 14 are **live-verified** on macOS (Classic Outlook 16.112.1,
+Exchange Online). Live testing uncovered and fixed several Outlook 16-specific AppleScript
+incompatibilities — see [troubleshooting.md](troubleshooting.md) for the full list.
+
+Milestone 13 (New Outlook UI provider) is an isolated placeholder; New Outlook for Mac
+uses a React Native engine with no AppleScript dictionary. Automation there would require
+UI scripting or the Microsoft Graph API. Users on New Outlook must revert to Classic
+Outlook — see [apple-script.md](apple-script.md) and [troubleshooting.md](troubleshooting.md).
