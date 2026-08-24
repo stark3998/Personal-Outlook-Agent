@@ -88,11 +88,14 @@ class OutlookAppleScriptProvider:
             return OutlookInfo(installed=False, running=False)
         running = await self._exec.is_outlook_running()
         version = await self._exec.outlook_version() if running else None
+        mode: str | None = None
+        if version:
+            mode = "new" if await self._exec.is_new_outlook() else "classic"
         return OutlookInfo(
             installed=version is not None or running,
             running=running,
             version=version,
-            mode="classic" if version else None,
+            mode=mode,
         )
 
     async def probe_permissions(self) -> Permissions:

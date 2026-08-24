@@ -149,3 +149,19 @@ class AppleScriptExecutor:
             return await self.run('tell application "Microsoft Outlook" to get version')
         except AppleScriptError:
             return None
+
+    async def is_new_outlook(self) -> bool:
+        """Return True when New Outlook for Mac is active (limited AppleScript support)."""
+        # New Outlook sets IsRunningNewOutlook=1 in its preferences plist.
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["defaults", "read", "com.microsoft.Outlook", "IsRunningNewOutlook"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            return result.returncode == 0 and result.stdout.strip() == "1"
+        except Exception:  # noqa: BLE001
+            return False

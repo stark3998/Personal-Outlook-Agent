@@ -31,9 +31,25 @@ class DiagnosticsService:
         outlook = await self._provider.probe_outlook()
         permissions = await self._provider.probe_permissions()
         checks = self._base_checks(outlook, permissions)
-        # Live access probes only make sense once Outlook is actually reachable.
+        # Live access probes only make sense once Outlook is actually reachable,
+        # and only under Classic Outlook (New Outlook has a stripped AppleScript dict).
         if outlook.running:
-            checks.extend(await self._access_checks())
+            if outlook.mode == "new":
+                checks.append(
+                    DiagnosticCheck(
+                        name="outlook_mode",
+                        ok=False,
+                        detail="New Outlook for Mac detected",
+                        remediation=(
+                            "New Outlook does not expose the AppleScript dictionary "
+                            "required by this agent (exchange accounts, message access). "
+                            "Switch to Classic Outlook: Help > Revert to Legacy Outlook, "
+                            "or add a Microsoft Graph API provider for Exchange Online."
+                        ),
+                    )
+                )
+            else:
+                checks.extend(await self._access_checks())
         status = self._status(checks)
         return DiagnosticReport(
             status=status,
@@ -97,9 +113,16 @@ class DiagnosticsService:
             )
 
         # Message read: pick an inbox folder if we can and read a single item.
+        # Prefer a folder marked as INBOX by special_type; fall back to name match
+        # (Outlook 16 for Mac often cannot convert folder type to an integer).
         inbox = None
         if isinstance(folders, list):
             inbox = next((f for f in folders if f.special_type is SpecialFolderType.INBOX), None)
+            if inbox is None:
+                inbox = next(
+                    (f for f in folders if f.name.lower() == "inbox" and f.account_id),
+                    None,
+                )
         if inbox is not None:
             msg_ok, _detail, _msgs = await self._probe(
                 "message_access",
@@ -134,7 +157,7 @@ class DiagnosticsService:
 
     @staticmethod
     def _status(checks: list[DiagnosticCheck]) -> HealthStatus:
-        critical = {"outlook_installed", "automation_permission"}
+        critical = {"outlook_installed", "automation_permission", "outlook_mode"}
         if any(not c.ok for c in checks if c.name in critical):
             return HealthStatus.UNHEALTHY
         if any(not c.ok for c in checks):

@@ -209,11 +209,13 @@ def _summary_object_builder() -> str:
             set mSent to my isoDate(time sent of m)
         end try
         try
-            set mHasAttach to (has attachment of m)
+            set mHasAttach to (count of attachments of m) > 0
         end try
-        try
-            set mConv to (conversation id of m) as string
-        end try
+        tell m
+            try
+                set mConv to conversation id as string
+            end try
+        end tell
         try
             set mFolder to (id of (folder of m)) as string
         end try
@@ -347,11 +349,13 @@ tell application "Microsoft Outlook"
         set mSent to my isoDate(time sent of m)
     end try
     try
-        set mHasAttach to (has attachment of m)
+        set mHasAttach to (count of attachments of m) > 0
     end try
-    try
-        set mConv to (conversation id of m) as string
-    end try
+    tell m
+        try
+            set mConv to conversation id as string
+        end try
+    end tell
     try
         set mFolder to (id of (folder of m)) as string
     end try
